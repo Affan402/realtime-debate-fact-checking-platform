@@ -1,14 +1,17 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Link } from "react-router-dom"
 import { SpeakerPanel } from "@/components/debate/speaker-panel"
 import { ArgumentInput } from "@/components/debate/argument-input"
 import { AudienceReactions } from "@/components/debate/audience-reactions"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Users, BarChart3, Loader2, CheckCircle2 } from "lucide-react"
+import { ArrowLeft, Users, BarChart3, Loader2, CheckCircle2, Radio } from "lucide-react"
 import { argumentAPI } from "@/services/api"
+import { joinRoom, emitNewArgument, onReceiveArgument, disconnectSocket } from "@/services/socket"
+
+const DEBATE_ID = "1786435967997"
 
 export default function DebateRoomPage() {
   const [speakers, setSpeakers] = useState([
@@ -41,6 +44,32 @@ export default function DebateRoomPage() {
   const [submitting, setSubmitting] = useState(false)
   const [lastArgument, setLastArgument] = useState<any>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
+  const [liveArguments, setLiveArguments] = useState<any[]>([])
+  const [isLive, setIsLive] = useState(false)
+
+  // Track if the current client emitted the argument so we don't double-add it
+  const pendingEchoRef = useRef<string | null>(null)
+
+  // Join the debate room via socket.io on mount; listen for real-time arguments
+  useEffect(() => {
+    joinRoom(DEBATE_ID)
+    setIsLive(true)
+
+    const unsubscribe = onReceiveArgument((argument) => {
+      // Avoid duplicating our own just-submitted argument (server echoes to all including sender)
+      const sig = `${argument?.speakerName}::${argument?.claim}`
+      if (pendingEchoRef.current === sig) {
+        pendingEchoRef.current = null
+        return
+      }
+      setLiveArguments((prev) => [...prev, argument])
+    })
+
+    return () => {
+      unsubscribe()
+      disconnectSocket()
+    }
+  }, [])
 
   // Simulate timer countdown
   useEffect(() => {
@@ -69,16 +98,23 @@ export default function DebateRoomPage() {
   const handleSubmitArgument = async (argument: string) => {
     setSubmitting(true)
     setSubmitError(null)
+    const speakerName = speakers.find((s) => s.isActive)?.name || "Anonymous"
+    const payload = {
+      debateId: DEBATE_ID,
+      speakerName,
+      claim: argument,
+      evidence: "",
+    }
+    // Mark this argument so we can ignore the socket echo (we already have the API response)
+    pendingEchoRef.current = `${speakerName}::${argument}`
+    // Broadcast to the room in real-time
+    emitNewArgument(payload)
     try {
-      const response = await argumentAPI.createArgument({
-        debateId: "1786435967997",
-        speakerName: speakers.find((s) => s.isActive)?.name || "Anonymous",
-        claim: argument,
-        evidence: "",
-      })
+      const response = await argumentAPI.createArgument(payload)
       setLastArgument(response.data)
     } catch (err: any) {
       setSubmitError(err.message || "Failed to submit argument")
+      pendingEchoRef.current = null
     } finally {
       setSubmitting(false)
     }
@@ -99,8 +135,16 @@ export default function DebateRoomPage() {
               <div>
                 <h1 className="text-xl font-bold">The Future of AI Regulation</h1>
                 <div className="flex items-center gap-3 mt-1">
-                  <Badge variant="secondary" className="bg-accent/10 text-accent border-accent/20">
-                    Live
+                  <Badge
+                    variant="secondary"
+                    className={
+                      isLive
+                        ? "bg-accent/10 text-accent border-accent/20"
+                        : "bg-muted text-muted-foreground border-border"
+                    }
+                  >
+                    <Radio className={`size-3 mr-1 ${isLive ? "animate-pulse" : ""}`} />
+                    {isLive ? "Live" : "Connecting…"}
                   </Badge>
                   <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
                     <Users className="size-4" />
@@ -161,9 +205,34 @@ export default function DebateRoomPage() {
             )}
           </div>
 
-          {/* Right Column - Audience Reactions */}
-          <div className="lg:col-span-1">
+          {/* Right Column - Audience Reactions & Live Feed */}
+          <div className="lg:col-span-1 space-y-6">
             <AudienceReactions reactions={reactions} onReact={handleReaction} userReaction={userReaction} />
+
+            {/* Live Arguments Feed (real-time via socket.io) */}
+            <div className="rounded-lg border border-border bg-card p-4">
+              <div className="flex items-center gap-2 mb-3">
+                <Radio className={`size-4 ${isLive ? "text-accent animate-pulse" : "text-muted-foreground"}`} />
+                <h3 className="text-sm font-semibold">Live Arguments</h3>
+                <Badge variant="outline" className="ml-auto text-xs">
+                  {liveArguments.length}
+                </Badge>
+              </div>
+              {liveArguments.length === 0 ? (
+                <p className="text-xs text-muted-foreground">
+                  {isLive ? "Waiting for arguments…" : "Connecting to live feed…"}
+                </p>
+              ) : (
+                <ul className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                  {liveArguments.map((arg, idx) => (
+                    <li key={idx} className="rounded-md border border-border/60 bg-background/40 p-2">
+                      <p className="text-xs font-medium text-accent">{arg.speakerName || "Anonymous"}</p>
+                      <p className="text-sm mt-0.5">{arg.claim}</p>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
         </div>
       </div>
