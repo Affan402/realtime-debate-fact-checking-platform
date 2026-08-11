@@ -1,62 +1,50 @@
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, TrendingUp } from "lucide-react"
+import { ArrowLeft, TrendingUp, Loader2 } from "lucide-react"
 import { FactCheckPanel } from "@/components/debate/fact-check-panel"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { factCheckAPI } from "@/services/api"
 
 export default function FactCheckPage() {
-  const factChecks = [
-    {
-      id: "1",
-      claim: "China's investment in AI has reached $150B annually",
-      credibility: "medium" as const,
-      explanation:
-        "While China has made significant AI investments, the exact figure is disputed. Multiple sources estimate between $75B-$150B annually when including both public and private sector investments. The claim uses the upper bound estimate.",
-      sources: [
-        {
-          title: "China AI Investment Report 2024",
-          url: "https://example.com/report",
-          domain: "techpolicy.org",
-        },
-        {
-          title: "Global AI Funding Tracker",
-          url: "https://example.com/tracker",
-          domain: "aiindex.org",
-        },
-        {
-          title: "Analysis of Chinese Tech Spending",
-          url: "https://example.com/analysis",
-          domain: "reuters.com",
-        },
-      ],
-      aiConfidence: 72,
-      timestamp: "2 minutes ago",
-      speaker: "Marcus Johnson",
-    },
-    {
-      id: "2",
-      claim: "67% of AI systems lack proper oversight mechanisms",
-      credibility: "high" as const,
-      explanation:
-        "This statistic is from a peer-reviewed Stanford HAI study published in March 2024, which surveyed 500+ AI systems across industries. The methodology is sound and the finding is widely cited in academic literature.",
-      sources: [
-        {
-          title: "Stanford HAI AI Oversight Study",
-          url: "https://example.com/stanford",
-          domain: "hai.stanford.edu",
-        },
-        {
-          title: "AI Governance Report 2024",
-          url: "https://example.com/governance",
-          domain: "nature.com",
-        },
-      ],
-      aiConfidence: 94,
-      timestamp: "5 minutes ago",
-      speaker: "Sarah Chen",
-    },
-  ]
+  const [factChecks, setFactChecks] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    const loadFactChecks = async () => {
+      try {
+        setLoading(true)
+        const response = await factCheckAPI.getFactChecks()
+        const rawChecks = response.data || []
+        // Map backend fact checks to the shape expected by FactCheckPanel
+        const mapped = rawChecks.map((fc: any) => ({
+          id: fc.id,
+          claim: fc.claim || fc.reason || "Claim not available",
+          credibility: fc.verified ? "high" : fc.confidence >= 50 ? "medium" : "low",
+          explanation: fc.reason || "No analysis available",
+          sources: [],
+          aiConfidence: fc.confidence || 0,
+          timestamp: new Date(fc.createdAt).toLocaleString(),
+          speaker: fc.speakerName || "Unknown",
+        }))
+        setFactChecks(mapped)
+      } catch (err: any) {
+        setError(err.message || "Failed to load fact checks")
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadFactChecks()
+  }, [])
+
+  const stats = {
+    total: factChecks.length,
+    highCredibility: factChecks.filter((fc) => fc.credibility === "high").length,
+    needsReview: factChecks.filter((fc) => fc.credibility !== "high").length,
+  }
+  const highCredibilityPct = stats.total > 0 ? Math.round((stats.highCredibility / stats.total) * 100) : 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -79,7 +67,7 @@ export default function FactCheckPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Claims Analyzed</p>
-                <p className="text-2xl font-bold mt-1">24</p>
+                <p className="text-2xl font-bold mt-1">{stats.total}</p>
               </div>
               <TrendingUp className="size-8 text-accent" />
             </div>
@@ -89,7 +77,7 @@ export default function FactCheckPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">High Credibility</p>
-                <p className="text-2xl font-bold mt-1">67%</p>
+                <p className="text-2xl font-bold mt-1">{highCredibilityPct}%</p>
               </div>
               <div className="size-3 rounded-full bg-green-500" />
             </div>
@@ -99,7 +87,7 @@ export default function FactCheckPage() {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-muted-foreground">Needs Review</p>
-                <p className="text-2xl font-bold mt-1">8</p>
+                <p className="text-2xl font-bold mt-1">{stats.needsReview}</p>
               </div>
               <div className="size-3 rounded-full bg-yellow-500" />
             </div>
@@ -114,7 +102,25 @@ export default function FactCheckPage() {
             <Badge variant="outline">Verified</Badge>
           </div>
 
-          {factChecks.map((check) => (
+          {loading && (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="size-8 animate-spin text-muted-foreground" />
+            </div>
+          )}
+
+          {error && (
+            <Card className="p-6 border-red-500/50">
+              <p className="text-red-500">Error: {error}</p>
+            </Card>
+          )}
+
+          {!loading && !error && factChecks.length === 0 && (
+            <Card className="p-12 text-center">
+              <p className="text-muted-foreground">No fact checks yet. Fact checks are created when arguments are analyzed.</p>
+            </Card>
+          )}
+
+          {!loading && !error && factChecks.map((check) => (
             <div key={check.id} className="space-y-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

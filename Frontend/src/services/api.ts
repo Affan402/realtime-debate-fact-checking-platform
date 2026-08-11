@@ -95,4 +95,20 @@ export const analyticsAPI = {
     }),
 };
 
+// ============ AI FEEDBACK ENDPOINTS ============
+export const aiAPI = {
+  // Get AI feedback for a debate (summary, fallacies, key points, winner)
+  getAIFeedback: (debateId: string) =>
+    apiRequest(`/ai/feedback/${debateId}`, {
+      method: 'GET',
+    }),
+
+  // Generate a devil's advocate counter-argument
+  getDevilsAdvocate: (claim: string) =>
+    apiRequest('/ai/devils-advocate', {
+      method: 'POST',
+      body: JSON.stringify({ claim }),
+    }),
+};
+
 // ============ BASIC ENDPOINTS ============

@@ -1,77 +1,85 @@
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Loader2 } from "lucide-react"
 import { FallacyDetector } from "@/components/ai/fallacy-detector.tsx"
 import { BiasWarning } from "@/components/ai/bias-warning.tsx"
 import { DevilsAdvocate } from "@/components/ai/devils-advocate.tsx"
 import { DebateSummary } from "@/components/ai/debate-summary.tsx"
+import { Card } from "@/components/ui/card"
+import { aiAPI } from "@/services/api"
 
 export default function AIFeedbackPage() {
-  const fallacyExample = {
-    type: "strawman" as const,
-    confidence: 87,
-    explanation:
-      "The argument misrepresents the opponent's position by exaggerating it to an extreme that wasn't actually claimed. The original argument was about regulation timing, but this characterizes it as complete prohibition.",
-    suggestion:
-      "Address the actual argument about regulatory timing rather than the extreme position. Acknowledge the nuance in the opponent's stance.",
-    quote: "My opponent wants to completely ban AI development and destroy American innovation",
-  }
+  const [feedback, setFeedback] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const biasExample = {
+  useEffect(() => {
+    const loadFeedback = async () => {
+      try {
+        setLoading(true)
+        const response = await aiAPI.getAIFeedback("1786435967997")
+        setFeedback(response.data)
+      } catch (err: any) {
+        setError(err.message || "Failed to load AI feedback")
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadFeedback()
+  }, [])
+
+  // Map backend feedback to component-expected shapes
+  const summaryData = feedback
+    ? {
+        topic: `Debate ${feedback.debateId}`,
+        duration: "Live",
+        speakers: feedback.speakers || [],
+        keyPoints: (feedback.keyPoints || []).map((kp: any) => ({
+          speaker: kp.speaker,
+          point: kp.point,
+          impact: kp.impact as "high" | "medium" | "low",
+        })),
+        winner: feedback.winner || "N/A",
+        winReason: "Based on average credibility score across arguments",
+        audienceStats: {
+          totalReactions: 0,
+          mostEngaging: feedback.winner || "N/A",
+        },
+        aiInsight: feedback.summary || "No summary available",
+      }
+    : null
+
+  const fallacyData =
+    feedback?.fallacies && feedback.fallacies.length > 0
+      ? {
+          type: (feedback.fallacies[0].fallacy || "unknown").toLowerCase().replace(/\s+/g, "") as any,
+          confidence: feedback.fallacies[0].confidence || 50,
+          explanation:
+            feedback.fallacies[0].explanation ||
+            `Fallacy detected in argument by ${feedback.fallacies[0].speaker}`,
+          suggestion: "Review the argument and address the logical issue identified.",
+          quote: feedback.fallacies[0].claim || "",
+        }
+      : null
+
+  const biasData = {
     type: "confirmation" as const,
-    severity: "medium" as const,
+    severity: "low" as const,
     description:
-      "The argument selectively presents evidence that supports a pre-existing belief while ignoring contradictory data about successful technology regulations.",
-    examples: [
-      "Citing only failed regulation attempts while ignoring GDPR and other successful frameworks",
-      "Focusing on China's spending without discussing their quality or outcomes",
-    ],
+      "Bias analysis is based on argument credibility scores. Arguments with lower credibility may indicate selective evidence use.",
+    examples: feedback?.fallacies?.map((f: any) => `${f.speaker}: ${f.claim}`) || [],
     mitigation:
-      "Acknowledge counter-examples and discuss why certain regulations succeeded while others failed. Present a more balanced view of international AI development.",
+      "Encourage debaters to present balanced evidence and acknowledge counter-arguments.",
   }
 
-  const devilsAdvocateExample = {
-    originalClaim: "Over-regulation will stifle innovation and put the US behind in the global AI race",
+  const devilsAdvocateData = {
+    originalClaim: feedback?.keyPoints?.[0]?.point || "No arguments available",
     counterArgument:
-      "Strategic regulation can actually accelerate responsible innovation by providing clear guidelines and building public trust",
-    evidence: [
-      "GDPR increased EU tech investment by creating a clear legal framework",
-      "Medical device regulations led to higher quality innovation, not less",
-      "Public trust increases when safety frameworks exist, enabling faster adoption",
-    ],
-    conclusion: "Well-designed regulation serves as a catalyst for sustainable innovation rather than an impediment",
-    strength: 82,
-  }
-
-  const summaryExample = {
-    topic: "The Future of AI Regulation",
-    duration: "45 minutes",
-    speakers: ["Sarah Chen", "Marcus Johnson"],
-    keyPoints: [
-      {
-        speaker: "Sarah Chen",
-        point: "Historical precedent from GDPR shows effective tech regulation is possible and beneficial",
-        impact: "high" as const,
-      },
-      {
-        speaker: "Marcus Johnson",
-        point: "Current regulatory proposals lack technical understanding of AI systems",
-        impact: "high" as const,
-      },
-      {
-        speaker: "Sarah Chen",
-        point: "Industry self-regulation has consistently failed in social media and requires government oversight",
-        impact: "medium" as const,
-      },
-    ],
-    winner: "Sarah Chen",
-    winReason: "Stronger factual support, better logical consistency, and more effective rebuttals",
-    audienceStats: {
-      totalReactions: 247,
-      mostEngaging: "Sarah Chen",
-    },
-    aiInsight:
-      "Both debaters presented compelling arguments, but Sarah Chen's case benefited from stronger empirical evidence and more effective use of historical precedents. Marcus Johnson raised valid concerns about implementation complexity but could have strengthened his position with more concrete alternative proposals.",
+      "Counter-argument generation requires the devil's advocate endpoint. Use the button below to generate one.",
+    evidence: [],
+    conclusion: "",
+    strength: 0,
   }
 
   return (
@@ -89,28 +97,50 @@ export default function AIFeedbackPage() {
           </div>
         </div>
 
-        <div className="space-y-6 max-w-4xl">
-          {/* Debate Summary */}
-          <DebateSummary summary={summaryExample} />
-
-          {/* Fallacy Detection */}
-          <div>
-            <h2 className="text-xl font-bold mb-4">Logical Fallacies</h2>
-            <FallacyDetector fallacy={fallacyExample} />
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
           </div>
+        )}
 
-          {/* Bias Warnings */}
-          <div>
-            <h2 className="text-xl font-bold mb-4">Bias Analysis</h2>
-            <BiasWarning bias={biasExample} />
-          </div>
+        {error && (
+          <Card className="p-6 border-red-500/50 mb-6">
+            <p className="text-red-500">Error: {error}</p>
+          </Card>
+        )}
 
-          {/* Devil's Advocate */}
-          <div>
-            <h2 className="text-xl font-bold mb-4">Alternative Perspectives</h2>
-            <DevilsAdvocate response={devilsAdvocateExample} />
+        {!loading && !error && (
+          <div className="space-y-6 max-w-4xl">
+            {/* Debate Summary */}
+            {summaryData && <DebateSummary summary={summaryData} />}
+
+            {/* Fallacy Detection */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Logical Fallacies</h2>
+              {fallacyData ? (
+                <FallacyDetector fallacy={fallacyData} />
+              ) : (
+                <Card className="p-6">
+                  <p className="text-muted-foreground">
+                    No fallacies detected in the current debate arguments.
+                  </p>
+                </Card>
+              )}
+            </div>
+
+            {/* Bias Warnings */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Bias Analysis</h2>
+              <BiasWarning bias={biasData} />
+            </div>
+
+            {/* Devil's Advocate */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Alternative Perspectives</h2>
+              <DevilsAdvocate response={devilsAdvocateData} />
+            </div>
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
