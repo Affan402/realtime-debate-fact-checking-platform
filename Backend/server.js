@@ -8,6 +8,7 @@ import DebateRoutes from "./routes/debate.routes.js";
 import ArgumentRoutes from "./routes/argument.routes.js";
 import FactCheckRoutes from "./routes/factcheck.routes.js";
 import AnalyticsRoutes from "./routes/analytics.routes.js";
+import AuthRoutes from "./routes/Authroute.js";
 
 dotenv.config();
 
@@ -19,6 +20,7 @@ dotenv.config();
     app.use("/api/arguments", ArgumentRoutes);
     app.use("/api/factcheck", FactCheckRoutes);
     app.use("/api/analytics", AnalyticsRoutes);
+    app.use("/api/auth", AuthRoutes);
 
     const server = http.createServer(app);
     socketConfig(server);

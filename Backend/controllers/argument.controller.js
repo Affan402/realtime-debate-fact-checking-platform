@@ -13,7 +13,7 @@ export const createArgument = async (req, res) => {
       });
     }
 
-    const fallacy = detectFallacy(claim);
+    const fallacy = await detectFallacy(claim);
     const credibilityScore = calculateCredibility(evidence);
 
     const argument = Argument.create({

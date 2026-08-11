@@ -34,6 +34,16 @@ export function ArgumentCard({ argument }: ArgumentCardProps) {
     weak: "bg-red-500/10 text-red-500 border-red-500/20",
   }
 
+  const factCheckLevel = argument.factCheckStatus?.isChecking
+    ? "unverified"
+    : argument.factCheckStatus?.issueType === "verified"
+      ? "high"
+      : argument.factCheckStatus?.issueType === "disputed"
+        ? "medium"
+        : argument.factCheckStatus?.issueType === "low-credibility"
+          ? "low"
+          : "unverified"
+
   return (
     <Card className="p-6">
       <div className="flex items-start gap-4 mb-4">
@@ -52,7 +62,7 @@ export function ArgumentCard({ argument }: ArgumentCardProps) {
             <Badge variant="outline" className={strengthColors[argument.strength]}>
               {argument.strength} argument
             </Badge>
-            {argument.factCheckStatus && <FactCheckBadge status={argument.factCheckStatus} />}
+            {argument.factCheckStatus && <FactCheckBadge level={factCheckLevel} />}
             {argument.hasWarning && (
               <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-500 border-yellow-500/20">
                 <AlertTriangle className="size-3 mr-1" />
