@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Trophy, TrendingUp, Users, Loader2 } from "lucide-react"
@@ -6,32 +6,30 @@ import { DebaterScorecard } from "@/components/analytics/debater-scorecard"
 import { LeaderboardTable } from "@/components/analytics/leaderboard-table"
 import { ArgumentStrengthChart } from "@/components/analytics/argument-strength-chart"
 import { Card } from "@/components/ui/card"
-import { analyticsAPI, argumentAPI } from "@/services/api"
+import { useDebateData } from "@/context/DebateContext"
 
 export default function AnalyticsPage() {
-  const [analytics, setAnalytics] = useState<any>(null)
-  const [argumentsData, setArgumentsData] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const {
+    analytics,
+    analyticsLoading,
+    analyticsError,
+    refreshAnalytics,
+    arguments: argumentsData,
+    refreshArguments,
+  } = useDebateData()
 
+  // Fetch analytics and arguments on mount if not already cached
   useEffect(() => {
-    const loadAnalytics = async () => {
-      try {
-        setLoading(true)
-        const [analyticsRes, argsRes] = await Promise.all([
-          analyticsAPI.getAnalytics("1786435967997"),
-          argumentAPI.getArgumentsByDebate("1786435967997"),
-        ])
-        setAnalytics(analyticsRes.data)
-        setArgumentsData(argsRes.data || [])
-      } catch (err: any) {
-        setError(err.message || "Failed to load analytics")
-      } finally {
-        setLoading(false)
-      }
+    if (!analytics && !analyticsError) {
+      refreshAnalytics()
     }
-    loadAnalytics()
-  }, [])
+    if (argumentsData.length === 0) {
+      refreshArguments()
+    }
+  }, [analytics, analyticsError, argumentsData.length, refreshAnalytics, refreshArguments])
+
+  const loading = analyticsLoading
+  const error = analyticsError
 
   // Compute leaderboard from arguments (group by speaker)
   const leaderboardData = (() => {

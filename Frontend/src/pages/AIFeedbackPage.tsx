@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Loader2 } from "lucide-react"
@@ -7,27 +7,20 @@ import { BiasWarning } from "@/components/ai/bias-warning.tsx"
 import { DevilsAdvocate } from "@/components/ai/devils-advocate.tsx"
 import { DebateSummary } from "@/components/ai/debate-summary.tsx"
 import { Card } from "@/components/ui/card"
-import { aiAPI } from "@/services/api"
+import { useDebateData } from "@/context/DebateContext"
 
 export default function AIFeedbackPage() {
-  const [feedback, setFeedback] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { aiFeedback: feedback, aiFeedbackLoading, aiFeedbackError, refreshAIFeedback } = useDebateData()
 
+  // Fetch AI feedback on mount if not already cached
   useEffect(() => {
-    const loadFeedback = async () => {
-      try {
-        setLoading(true)
-        const response = await aiAPI.getAIFeedback("1786435967997")
-        setFeedback(response.data)
-      } catch (err: any) {
-        setError(err.message || "Failed to load AI feedback")
-      } finally {
-        setLoading(false)
-      }
+    if (!feedback && !aiFeedbackError) {
+      refreshAIFeedback()
     }
-    loadFeedback()
-  }, [])
+  }, [feedback, aiFeedbackError, refreshAIFeedback])
+
+  const loading = aiFeedbackLoading
+  const error = aiFeedbackError
 
   // Map backend feedback to component-expected shapes
   const summaryData = feedback
