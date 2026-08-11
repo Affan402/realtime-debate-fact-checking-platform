@@ -1,91 +1,98 @@
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
-import { ArrowLeft, Trophy, TrendingUp, Users } from "lucide-react"
+import { ArrowLeft, Trophy, TrendingUp, Users, Loader2 } from "lucide-react"
 import { DebaterScorecard } from "@/components/analytics/debater-scorecard"
 import { LeaderboardTable } from "@/components/analytics/leaderboard-table"
 import { ArgumentStrengthChart } from "@/components/analytics/argument-strength-chart"
 import { Card } from "@/components/ui/card"
+import { analyticsAPI, argumentAPI } from "@/services/api"
 
 export default function AnalyticsPage() {
-  const topDebater = {
-    name: "Sarah Chen",
-    avatar: "/professional-woman-diverse.png",
-    rank: 1,
-    totalDebates: 47,
-    winRate: 78,
-    avgArgumentStrength: 8.4,
-    specialties: ["Technology", "Ethics", "Policy"],
-    stats: {
-      strongArguments: 85,
-      factCheckScore: 92,
-      logicalConsistency: 88,
-      audienceEngagement: 76,
-    },
-  }
+  const [analytics, setAnalytics] = useState<any>(null)
+  const [argumentsData, setArgumentsData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
 
-  const leaderboardData = [
-    {
-      rank: 1,
-      name: "Sarah Chen",
-      avatar: "/professional-woman-diverse.png",
-      points: 4825,
-      debates: 47,
-      winRate: 78,
-      trend: "up" as const,
-      rankChange: 2,
-    },
-    {
-      rank: 2,
-      name: "Marcus Johnson",
-      avatar: "/professional-man.jpg",
-      points: 4710,
-      debates: 52,
-      winRate: 73,
-      trend: "down" as const,
-      rankChange: -1,
-    },
-    {
-      rank: 3,
-      name: "Dr. Emily Roberts",
-      avatar: "/placeholder.svg?height=40&width=40",
-      points: 4580,
-      debates: 41,
-      winRate: 80,
-      trend: "up" as const,
-      rankChange: 1,
-    },
-    {
-      rank: 4,
-      name: "Prof. James Williams",
-      avatar: "/placeholder.svg?height=40&width=40",
-      points: 4320,
-      debates: 38,
-      winRate: 68,
-      trend: "stable" as const,
-      rankChange: 0,
-    },
-    {
-      rank: 5,
-      name: "Alex Rivera",
-      avatar: "/placeholder.svg?height=40&width=40",
-      points: 4150,
-      debates: 45,
-      winRate: 71,
-      trend: "up" as const,
-      rankChange: 3,
-    },
-  ]
+  useEffect(() => {
+    const loadAnalytics = async () => {
+      try {
+        setLoading(true)
+        const [analyticsRes, argsRes] = await Promise.all([
+          analyticsAPI.getAnalytics("1786435967997"),
+          argumentAPI.getArgumentsByDebate("1786435967997"),
+        ])
+        setAnalytics(analyticsRes.data)
+        setArgumentsData(argsRes.data || [])
+      } catch (err: any) {
+        setError(err.message || "Failed to load analytics")
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadAnalytics()
+  }, [])
 
+  // Compute leaderboard from arguments (group by speaker)
+  const leaderboardData = (() => {
+    const speakerMap: Record<string, { debates: Set<string>; totalCredibility: number; count: number; strongArgs: number }> = {}
+    argumentsData.forEach((arg) => {
+      const name = arg.speakerName || "Unknown"
+      if (!speakerMap[name]) {
+        speakerMap[name] = { debates: new Set(), totalCredibility: 0, count: 0, strongArgs: 0 }
+      }
+      speakerMap[name].debates.add(arg.debateId)
+      speakerMap[name].totalCredibility += arg.credibilityScore || 0
+      speakerMap[name].count += 1
+      if ((arg.credibilityScore || 0) >= 0.7) speakerMap[name].strongArgs += 1
+    })
+    return Object.entries(speakerMap)
+      .map(([name, data], idx) => ({
+        rank: idx + 1,
+        name,
+        avatar: "/placeholder.svg?height=40&width=40",
+        points: Math.round(data.totalCredibility * 1000),
+        debates: data.debates.size,
+        winRate: data.count > 0 ? Math.round((data.strongArgs / data.count) * 100) : 0,
+        trend: "stable" as const,
+        rankChange: 0,
+      }))
+      .sort((a, b) => b.points - a.points)
+      .map((entry, idx) => ({ ...entry, rank: idx + 1 }))
+  })()
+
+  // Top debater is the first in leaderboard
+  const topDebater = leaderboardData[0]
+    ? {
+        name: leaderboardData[0].name,
+        avatar: leaderboardData[0].avatar,
+        rank: 1,
+        totalDebates: leaderboardData[0].debates,
+        winRate: leaderboardData[0].winRate,
+        avgArgumentStrength: Math.round((leaderboardData[0].points / 1000) * 10) / 10,
+        specialties: ["Debate"],
+        stats: {
+          strongArguments: leaderboardData[0].winRate,
+          factCheckScore: leaderboardData[0].winRate,
+          logicalConsistency: leaderboardData[0].winRate,
+          audienceEngagement: 0,
+        },
+      }
+    : null
+
+  // Argument strength data from real arguments
   const argumentStrengthData = {
-    debater: "Sarah Chen",
-    arguments: [
-      { timestamp: "Mon 10am", strength: 85, topic: "AI Regulation" },
-      { timestamp: "Wed 2pm", strength: 78, topic: "Climate Policy" },
-      { timestamp: "Thu 4pm", strength: 92, topic: "Healthcare Reform" },
-      { timestamp: "Fri 11am", strength: 88, topic: "Education System" },
-      { timestamp: "Sat 3pm", strength: 81, topic: "Economic Growth" },
-    ],
+    debater: topDebater?.name || "N/A",
+    arguments: argumentsData.slice(0, 5).map((arg) => ({
+      timestamp: new Date(arg.createdAt).toLocaleString(),
+      strength: Math.round((arg.credibilityScore || 0) * 100),
+      topic: arg.claim?.slice(0, 30) + (arg.claim?.length > 30 ? "..." : ""),
+    })),
   }
+
+  const totalArguments = analytics?.totalArguments || 0
+  const fallaciesDetected = analytics?.fallaciesDetected || 0
+  const averageCredibility = analytics?.averageCredibility || 0
 
   return (
     <div className="min-h-screen bg-background">
@@ -102,59 +109,89 @@ export default function AnalyticsPage() {
           </div>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid md:grid-cols-3 gap-4 mb-8">
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Total Debates</p>
-                <p className="text-3xl font-bold mt-1">247</p>
-                <p className="text-xs text-green-500 mt-1">+12% this week</p>
-              </div>
-              <Users className="size-10 text-accent" />
-            </div>
+        {loading && (
+          <div className="flex items-center justify-center py-20">
+            <Loader2 className="size-8 animate-spin text-muted-foreground" />
+          </div>
+        )}
+
+        {error && (
+          <Card className="p-6 border-red-500/50 mb-8">
+            <p className="text-red-500">Error: {error}</p>
           </Card>
+        )}
 
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Avg Argument Quality</p>
-                <p className="text-3xl font-bold mt-1">8.2/10</p>
-                <p className="text-xs text-green-500 mt-1">+0.4 improvement</p>
-              </div>
-              <TrendingUp className="size-10 text-accent" />
+        {!loading && !error && (
+          <>
+            {/* Stats Overview */}
+            <div className="grid md:grid-cols-3 gap-4 mb-8">
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Total Arguments</p>
+                    <p className="text-3xl font-bold mt-1">{totalArguments}</p>
+                    <p className="text-xs text-muted-foreground mt-1">In current debate</p>
+                  </div>
+                  <Users className="size-10 text-accent" />
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Avg Credibility</p>
+                    <p className="text-3xl font-bold mt-1">{(averageCredibility * 100).toFixed(1)}%</p>
+                    <p className="text-xs text-muted-foreground mt-1">Across all arguments</p>
+                  </div>
+                  <TrendingUp className="size-10 text-accent" />
+                </div>
+              </Card>
+
+              <Card className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">Fallacies Detected</p>
+                    <p className="text-3xl font-bold mt-1">{fallaciesDetected}</p>
+                    <p className="text-xs text-muted-foreground mt-1">In current debate</p>
+                  </div>
+                  <Trophy className="size-10 text-accent" />
+                </div>
+              </Card>
             </div>
-          </Card>
 
-          <Card className="p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm text-muted-foreground">Active Debaters</p>
-                <p className="text-3xl font-bold mt-1">1,247</p>
-                <p className="text-xs text-muted-foreground mt-1">All time</p>
+            {/* Top Debater Scorecard */}
+            {topDebater && (
+              <div className="mb-8">
+                <h2 className="text-xl font-bold mb-4">Top Ranked Debater</h2>
+                <DebaterScorecard debater={topDebater} />
               </div>
-              <Trophy className="size-10 text-accent" />
+            )}
+
+            {/* Leaderboard */}
+            <div className="mb-8">
+              <h2 className="text-xl font-bold mb-4">Leaderboard</h2>
+              {leaderboardData.length > 0 ? (
+                <LeaderboardTable entries={leaderboardData} />
+              ) : (
+                <Card className="p-12 text-center">
+                  <p className="text-muted-foreground">No debater data yet. Submit arguments to see rankings.</p>
+                </Card>
+              )}
             </div>
-          </Card>
-        </div>
 
-        {/* Top Debater Scorecard */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4">Top Ranked Debater</h2>
-          <DebaterScorecard debater={topDebater} />
-        </div>
-
-        {/* Leaderboard */}
-        <div className="mb-8">
-          <h2 className="text-xl font-bold mb-4">Leaderboard</h2>
-          <LeaderboardTable entries={leaderboardData} />
-        </div>
-
-        {/* Argument Strength Chart */}
-        <div>
-          <h2 className="text-xl font-bold mb-4">Recent Performance</h2>
-          <ArgumentStrengthChart data={argumentStrengthData} />
-        </div>
+            {/* Argument Strength Chart */}
+            <div>
+              <h2 className="text-xl font-bold mb-4">Recent Performance</h2>
+              {argumentStrengthData.arguments.length > 0 ? (
+                <ArgumentStrengthChart data={argumentStrengthData} />
+              ) : (
+                <Card className="p-12 text-center">
+                  <p className="text-muted-foreground">No argument data yet.</p>
+                </Card>
+              )}
+            </div>
+          </>
+        )}
       </div>
     </div>
   )

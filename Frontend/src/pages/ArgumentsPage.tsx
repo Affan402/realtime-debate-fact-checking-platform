@@ -1,61 +1,62 @@
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Filter } from "lucide-react"
+import { ArrowLeft, Filter, Loader2 } from "lucide-react"
 import { ArgumentCard } from "@/components/debate/argument-card"
 import { ArgumentFlow } from "@/components/debate/argument-flow"
+import { argumentAPI } from "@/services/api"
 
 export default function ArgumentsPage() {
-  const sampleArguments = [
-    {
-      id: "1",
-      speaker: {
-        name: "Sarah Chen",
-        avatar: "/professional-woman-diverse.png",
-      },
-      claim:
-        "AI systems require immediate regulatory oversight to prevent potential misuse and ensure ethical deployment",
-      evidence: [
-        "Recent studies show 67% of AI systems lack proper oversight mechanisms",
-        "Historical precedent from other tech regulations (GDPR) shows effectiveness",
-        "Industry leaders including OpenAI CEO Sam Altman have called for regulation",
-      ],
-      conclusion:
-        "Therefore, regulatory frameworks must be established now rather than waiting for market self-correction",
-      timestamp: "2 minutes ago",
-      reactions: 24,
-      strength: "strong" as const,
-      hasWarning: false,
-      factCheckStatus: {
-        isChecking: false,
-        hasIssue: true,
-        issueType: "verified" as const,
-      },
-    },
-    {
-      id: "2",
-      speaker: {
-        name: "Marcus Johnson",
-        avatar: "/professional-man.jpg",
-      },
-      claim: "Over-regulation will stifle innovation and put the US behind in the global AI race",
-      evidence: [
-        "China's investment in AI has reached $150B annually without heavy regulation",
-        "Startup formation in heavily regulated sectors drops by 40% on average",
-      ],
-      conclusion: "We need to balance innovation with safety through industry-led standards first",
-      timestamp: "5 minutes ago",
-      reactions: 18,
-      strength: "medium" as const,
-      hasWarning: true,
-      warningType: "fallacy" as const,
-      factCheckStatus: {
-        isChecking: false,
-        hasIssue: true,
-        issueType: "low-credibility" as const,
-      },
-    },
-  ]
+  const [arguments_, setArguments] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [filter, setFilter] = useState<"all" | "strong" | "review">("all")
+
+  useEffect(() => {
+    const loadArguments = async () => {
+      try {
+        setLoading(true)
+        const response = await argumentAPI.getArgumentsByDebate("1786435967997")
+        const rawArgs = response.data || []
+        // Map backend arguments to the shape expected by ArgumentCard
+        const mapped = rawArgs.map((arg: any) => ({
+          id: arg.id,
+          speaker: {
+            name: arg.speakerName,
+            avatar: "/placeholder.svg?height=40&width=40",
+          },
+          claim: arg.claim,
+          evidence: arg.evidence ? [arg.evidence] : [],
+          conclusion: "",
+          timestamp: new Date(arg.createdAt).toLocaleString(),
+          reactions: 0,
+          strength: arg.credibilityScore >= 0.7 ? "strong" : arg.credibilityScore >= 0.4 ? "medium" : "weak",
+          hasWarning: arg.fallacy && arg.fallacy !== "None" && !(typeof arg.fallacy === "object" && Object.keys(arg.fallacy).length === 0),
+          warningType: arg.fallacy && arg.fallacy !== "None" && !(typeof arg.fallacy === "object" && Object.keys(arg.fallacy).length === 0) ? "fallacy" : undefined,
+          factCheckStatus: {
+            isChecking: false,
+            hasIssue: arg.credibilityScore < 0.7,
+            issueType: arg.credibilityScore >= 0.7 ? "verified" : arg.credibilityScore >= 0.4 ? "disputed" : "low-credibility",
+          },
+          fallacy: arg.fallacy,
+          credibilityScore: arg.credibilityScore,
+        }))
+        setArguments(mapped)
+      } catch (err: any) {
+        setError(err.message || "Failed to load arguments")
+      } finally {
+        setLoading(false)
+      }
+    }
+    loadArguments()
+  }, [])
+
+  const filteredArguments = arguments_.filter((arg) => {
+    if (filter === "strong") return arg.strength === "strong"
+    if (filter === "review") return arg.hasWarning || arg.strength !== "strong"
+    return true
+  })
 
   const argumentThread = {
     id: "1",
@@ -110,12 +111,50 @@ export default function ArgumentsPage() {
           {/* Argument Cards */}
           <div className="lg:col-span-2 space-y-4">
             <div className="flex items-center gap-2 mb-4">
-              <Badge variant="secondary">All Arguments</Badge>
-              <Badge variant="outline">Strong Points</Badge>
-              <Badge variant="outline">Needs Review</Badge>
+              <Badge
+                variant={filter === "all" ? "secondary" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setFilter("all")}
+              >
+                All Arguments
+              </Badge>
+              <Badge
+                variant={filter === "strong" ? "secondary" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setFilter("strong")}
+              >
+                Strong Points
+              </Badge>
+              <Badge
+                variant={filter === "review" ? "secondary" : "outline"}
+                className="cursor-pointer"
+                onClick={() => setFilter("review")}
+              >
+                Needs Review
+              </Badge>
             </div>
 
-            {sampleArguments.map((arg) => (
+            {loading && (
+              <div className="flex items-center justify-center py-20">
+                <Loader2 className="size-8 animate-spin text-muted-foreground" />
+              </div>
+            )}
+
+            {error && (
+              <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20">
+                <p className="text-red-500">Error: {error}</p>
+              </div>
+            )}
+
+            {!loading && !error && filteredArguments.length === 0 && (
+              <div className="p-12 text-center text-muted-foreground">
+                {arguments_.length === 0
+                  ? "No arguments yet. Submit one from the debate room!"
+                  : "No arguments match this filter."}
+              </div>
+            )}
+
+            {!loading && !error && filteredArguments.map((arg) => (
               <ArgumentCard key={arg.id} argument={arg} />
             ))}
           </div>

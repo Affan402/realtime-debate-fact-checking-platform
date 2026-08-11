@@ -7,7 +7,8 @@ import { ArgumentInput } from "@/components/debate/argument-input"
 import { AudienceReactions } from "@/components/debate/audience-reactions"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Users, BarChart3 } from "lucide-react"
+import { ArrowLeft, Users, BarChart3, Loader2, CheckCircle2 } from "lucide-react"
+import { argumentAPI } from "@/services/api"
 
 export default function DebateRoomPage() {
   const [speakers, setSpeakers] = useState([
@@ -37,6 +38,9 @@ export default function DebateRoomPage() {
   })
 
   const [userReaction, setUserReaction] = useState<string | null>(null)
+  const [submitting, setSubmitting] = useState(false)
+  const [lastArgument, setLastArgument] = useState<any>(null)
+  const [submitError, setSubmitError] = useState<string | null>(null)
 
   // Simulate timer countdown
   useEffect(() => {
@@ -62,9 +66,22 @@ export default function DebateRoomPage() {
     }))
   }
 
-  const handleSubmitArgument = (argument: string) => {
-    console.log("[v0] New argument submitted:", argument)
-    // Handle argument submission
+  const handleSubmitArgument = async (argument: string) => {
+    setSubmitting(true)
+    setSubmitError(null)
+    try {
+      const response = await argumentAPI.createArgument({
+        debateId: "1786435967997",
+        speakerName: speakers.find((s) => s.isActive)?.name || "Anonymous",
+        claim: argument,
+        evidence: "",
+      })
+      setLastArgument(response.data)
+    } catch (err: any) {
+      setSubmitError(err.message || "Failed to submit argument")
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (
@@ -110,9 +127,38 @@ export default function DebateRoomPage() {
             <SpeakerPanel speakers={speakers} />
             <ArgumentInput
               onSubmit={handleSubmitArgument}
-              disabled={false}
+              disabled={submitting}
               placeholder="Make your point with evidence and reasoning..."
             />
+            {submitting && (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Loader2 className="size-4 animate-spin" />
+                <span>Analyzing your argument for fallacies...</span>
+              </div>
+            )}
+            {submitError && (
+              <div className="text-sm text-red-500">
+                Error: {submitError}
+              </div>
+            )}
+            {lastArgument && !submitting && (
+              <div className="flex items-start gap-2 p-4 rounded-lg bg-green-500/10 border border-green-500/20">
+                <CheckCircle2 className="size-5 text-green-500 shrink-0 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium text-green-500">Argument submitted & analyzed!</p>
+                  {lastArgument.fallacy && lastArgument.fallacy !== "None" && (
+                    <p className="text-muted-foreground mt-1">
+                      Fallacy detected: <span className="font-medium text-yellow-500">{lastArgument.fallacy}</span>
+                    </p>
+                  )}
+                  {lastArgument.credibilityScore !== undefined && (
+                    <p className="text-muted-foreground mt-0.5">
+                      Credibility score: <span className="font-medium">{(lastArgument.credibilityScore * 100).toFixed(0)}%</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Right Column - Audience Reactions */}
