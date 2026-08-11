@@ -72,11 +72,11 @@ Respond with ONLY a JSON object (no markdown, no extra text):
   }
 }
 
-export async function generateDebateSummary(debateTitle, arguments) {
+export async function generateDebateSummary(debateTitle, argumentList) {
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
 
-    const argumentsText = arguments
+    const argumentsText = argumentList
       .map(arg => `${arg.speakerName}: ${arg.claim}`)
       .join("\n");
 
