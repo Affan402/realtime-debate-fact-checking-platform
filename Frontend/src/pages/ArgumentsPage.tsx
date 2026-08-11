@@ -5,52 +5,45 @@ import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Filter, Loader2 } from "lucide-react"
 import { ArgumentCard } from "@/components/debate/argument-card"
 import { ArgumentFlow } from "@/components/debate/argument-flow"
-import { argumentAPI } from "@/services/api"
+import { useDebateData } from "@/context/DebateContext"
 
 export default function ArgumentsPage() {
-  const [arguments_, setArguments] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { arguments: rawArgs, argumentsLoading, argumentsError, refreshArguments } = useDebateData()
   const [filter, setFilter] = useState<"all" | "strong" | "review">("all")
 
+  // Fetch arguments on mount if not already cached
   useEffect(() => {
-    const loadArguments = async () => {
-      try {
-        setLoading(true)
-        const response = await argumentAPI.getArgumentsByDebate("1786435967997")
-        const rawArgs = response.data || []
-        // Map backend arguments to the shape expected by ArgumentCard
-        const mapped = rawArgs.map((arg: any) => ({
-          id: arg.id,
-          speaker: {
-            name: arg.speakerName,
-            avatar: "/placeholder.svg?height=40&width=40",
-          },
-          claim: arg.claim,
-          evidence: arg.evidence ? [arg.evidence] : [],
-          conclusion: "",
-          timestamp: new Date(arg.createdAt).toLocaleString(),
-          reactions: 0,
-          strength: arg.credibilityScore >= 0.7 ? "strong" : arg.credibilityScore >= 0.4 ? "medium" : "weak",
-          hasWarning: arg.fallacy && arg.fallacy !== "None" && !(typeof arg.fallacy === "object" && Object.keys(arg.fallacy).length === 0),
-          warningType: arg.fallacy && arg.fallacy !== "None" && !(typeof arg.fallacy === "object" && Object.keys(arg.fallacy).length === 0) ? "fallacy" : undefined,
-          factCheckStatus: {
-            isChecking: false,
-            hasIssue: arg.credibilityScore < 0.7,
-            issueType: arg.credibilityScore >= 0.7 ? "verified" : arg.credibilityScore >= 0.4 ? "disputed" : "low-credibility",
-          },
-          fallacy: arg.fallacy,
-          credibilityScore: arg.credibilityScore,
-        }))
-        setArguments(mapped)
-      } catch (err: any) {
-        setError(err.message || "Failed to load arguments")
-      } finally {
-        setLoading(false)
-      }
+    if (rawArgs.length === 0 && !argumentsError) {
+      refreshArguments()
     }
-    loadArguments()
-  }, [])
+  }, [rawArgs.length, argumentsError, refreshArguments])
+
+  const loading = argumentsLoading
+  const error = argumentsError
+
+  // Map backend arguments to the shape expected by ArgumentCard
+  const arguments_ = rawArgs.map((arg: any) => ({
+    id: arg.id,
+    speaker: {
+      name: arg.speakerName,
+      avatar: "/placeholder.svg?height=40&width=40",
+    },
+    claim: arg.claim,
+    evidence: arg.evidence ? [arg.evidence] : [],
+    conclusion: "",
+    timestamp: new Date(arg.createdAt).toLocaleString(),
+    reactions: 0,
+    strength: arg.credibilityScore >= 0.7 ? "strong" : arg.credibilityScore >= 0.4 ? "medium" : "weak",
+    hasWarning: arg.fallacy && arg.fallacy !== "None" && !(typeof arg.fallacy === "object" && Object.keys(arg.fallacy).length === 0),
+    warningType: arg.fallacy && arg.fallacy !== "None" && !(typeof arg.fallacy === "object" && Object.keys(arg.fallacy).length === 0) ? "fallacy" : undefined,
+    factCheckStatus: {
+      isChecking: false,
+      hasIssue: arg.credibilityScore < 0.7,
+      issueType: arg.credibilityScore >= 0.7 ? "verified" : arg.credibilityScore >= 0.4 ? "disputed" : "low-credibility",
+    },
+    fallacy: arg.fallacy,
+    credibilityScore: arg.credibilityScore,
+  }))
 
   const filteredArguments = arguments_.filter((arg) => {
     if (filter === "strong") return arg.strength === "strong"

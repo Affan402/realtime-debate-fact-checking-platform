@@ -1,43 +1,36 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, TrendingUp, Loader2 } from "lucide-react"
 import { FactCheckPanel } from "@/components/debate/fact-check-panel"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { factCheckAPI } from "@/services/api"
+import { useDebateData } from "@/context/DebateContext"
 
 export default function FactCheckPage() {
-  const [factChecks, setFactChecks] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { factChecks: rawChecks, factChecksLoading, factChecksError, refreshFactChecks } = useDebateData()
 
+  // Fetch fact checks on mount if not already cached
   useEffect(() => {
-    const loadFactChecks = async () => {
-      try {
-        setLoading(true)
-        const response = await factCheckAPI.getFactChecks()
-        const rawChecks = response.data || []
-        // Map backend fact checks to the shape expected by FactCheckPanel
-        const mapped = rawChecks.map((fc: any) => ({
-          id: fc.id,
-          claim: fc.claim || fc.reason || "Claim not available",
-          credibility: fc.verified ? "high" : fc.confidence >= 50 ? "medium" : "low",
-          explanation: fc.reason || "No analysis available",
-          sources: [],
-          aiConfidence: fc.confidence || 0,
-          timestamp: new Date(fc.createdAt).toLocaleString(),
-          speaker: fc.speakerName || "Unknown",
-        }))
-        setFactChecks(mapped)
-      } catch (err: any) {
-        setError(err.message || "Failed to load fact checks")
-      } finally {
-        setLoading(false)
-      }
+    if (rawChecks.length === 0 && !factChecksError) {
+      refreshFactChecks()
     }
-    loadFactChecks()
-  }, [])
+  }, [rawChecks.length, factChecksError, refreshFactChecks])
+
+  const loading = factChecksLoading
+  const error = factChecksError
+
+  // Map backend fact checks to the shape expected by FactCheckPanel
+  const factChecks = rawChecks.map((fc: any) => ({
+    id: fc.id,
+    claim: fc.claim || fc.reason || "Claim not available",
+    credibility: fc.verified ? "high" : fc.confidence >= 50 ? "medium" : "low",
+    explanation: fc.reason || "No analysis available",
+    sources: [],
+    aiConfidence: fc.confidence || 0,
+    timestamp: new Date(fc.createdAt).toLocaleString(),
+    speaker: fc.speakerName || "Unknown",
+  }))
 
   const stats = {
     total: factChecks.length,

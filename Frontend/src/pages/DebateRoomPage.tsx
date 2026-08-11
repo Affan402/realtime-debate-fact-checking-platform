@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { SpeakerPanel } from "@/components/debate/speaker-panel"
 import { ArgumentInput } from "@/components/debate/argument-input"
@@ -8,12 +8,12 @@ import { AudienceReactions } from "@/components/debate/audience-reactions"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Users, BarChart3, Loader2, CheckCircle2, Radio } from "lucide-react"
-import { argumentAPI } from "@/services/api"
-import { joinRoom, emitNewArgument, onReceiveArgument, disconnectSocket } from "@/services/socket"
-
-const DEBATE_ID = "1786435967997"
+import { useDebateData } from "@/context/DebateContext"
 
 export default function DebateRoomPage() {
+  const { isLive, liveArguments, submitArgument } = useDebateData()
+
+  // Local UI-only state (speakers timer + audience reactions are specific to this page)
   const [speakers, setSpeakers] = useState([
     {
       id: "1",
@@ -44,32 +44,6 @@ export default function DebateRoomPage() {
   const [submitting, setSubmitting] = useState(false)
   const [lastArgument, setLastArgument] = useState<any>(null)
   const [submitError, setSubmitError] = useState<string | null>(null)
-  const [liveArguments, setLiveArguments] = useState<any[]>([])
-  const [isLive, setIsLive] = useState(false)
-
-  // Track if the current client emitted the argument so we don't double-add it
-  const pendingEchoRef = useRef<string | null>(null)
-
-  // Join the debate room via socket.io on mount; listen for real-time arguments
-  useEffect(() => {
-    joinRoom(DEBATE_ID)
-    setIsLive(true)
-
-    const unsubscribe = onReceiveArgument((argument) => {
-      // Avoid duplicating our own just-submitted argument (server echoes to all including sender)
-      const sig = `${argument?.speakerName}::${argument?.claim}`
-      if (pendingEchoRef.current === sig) {
-        pendingEchoRef.current = null
-        return
-      }
-      setLiveArguments((prev) => [...prev, argument])
-    })
-
-    return () => {
-      unsubscribe()
-      disconnectSocket()
-    }
-  }, [])
 
   // Simulate timer countdown
   useEffect(() => {
@@ -99,22 +73,15 @@ export default function DebateRoomPage() {
     setSubmitting(true)
     setSubmitError(null)
     const speakerName = speakers.find((s) => s.isActive)?.name || "Anonymous"
-    const payload = {
-      debateId: DEBATE_ID,
-      speakerName,
-      claim: argument,
-      evidence: "",
-    }
-    // Mark this argument so we can ignore the socket echo (we already have the API response)
-    pendingEchoRef.current = `${speakerName}::${argument}`
-    // Broadcast to the room in real-time
-    emitNewArgument(payload)
     try {
-      const response = await argumentAPI.createArgument(payload)
-      setLastArgument(response.data)
+      const newArg = await submitArgument({
+        speakerName,
+        claim: argument,
+        evidence: "",
+      })
+      setLastArgument(newArg)
     } catch (err: any) {
       setSubmitError(err.message || "Failed to submit argument")
-      pendingEchoRef.current = null
     } finally {
       setSubmitting(false)
     }

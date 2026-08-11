@@ -1,30 +1,23 @@
-import { useEffect, useState } from "react"
+import { useEffect } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Users, Clock, Loader2 } from "lucide-react"
-import { debateAPI } from "@/services/api"
+import { useDebateData } from "@/context/DebateContext"
 
 export default function DebatesPage() {
-  const [debates, setDebates] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const { debates, debatesLoading, debatesError, refreshDebates } = useDebateData()
 
+  // Fetch debates on mount if not already cached
   useEffect(() => {
-    const loadDebates = async () => {
-      try {
-        setLoading(true)
-        const response = await debateAPI.getDebates()
-        setDebates(response.data || [])
-      } catch (err: any) {
-        setError(err.message || "Failed to load debates")
-      } finally {
-        setLoading(false)
-      }
+    if (debates.length === 0 && !debatesError) {
+      refreshDebates()
     }
-    loadDebates()
-  }, [])
+  }, [debates.length, debatesError, refreshDebates])
+
+  const loading = debatesLoading
+  const error = debatesError
 
   const formatTimeAgo = (dateString: string) => {
     const diff = Date.now() - new Date(dateString).getTime()
