@@ -5,7 +5,8 @@
   "main": "server.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "dev": "nodemon server.js"
+    "dev": "nodemon server.js",
+    "start": "node server.js"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +22,7 @@
     "express-rate-limit": "^8.2.1",
     "ioredis": "^5.8.2",
     "jsonwebtoken": "^9.0.3",
+    "mongoose": "^9.9.5",
     "nodemailer": "^7.0.12",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",

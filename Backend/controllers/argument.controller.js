@@ -16,7 +16,7 @@ export const createArgument = async (req, res) => {
     const fallacy = await detectFallacy(claim);
     const credibilityScore = calculateCredibility(evidence);
 
-    const argument = Argument.create({
+    const argument = await Argument.create({
       debateId,
       speakerName,
       claim,
@@ -43,8 +43,8 @@ export const getArguments = async (req, res) => {
     const { debateId } = req.query;
     
     const args = debateId 
-      ? Argument.find({ debateId }) 
-      : Argument.find();
+      ? await Argument.find({ debateId }) 
+      : await Argument.find();
 
     res.status(200).json({ 
       message: "Arguments retrieved successfully",
@@ -62,7 +62,7 @@ export const getArguments = async (req, res) => {
 export const getArgumentById = async (req, res) => {
   try {
     const { id } = req.params;
-    const argument = Argument.findById(id);
+    const argument = await Argument.findById(id);
     
     if (!argument) {
       return res.status(404).json({ 

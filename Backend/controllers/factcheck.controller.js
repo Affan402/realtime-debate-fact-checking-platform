@@ -11,7 +11,7 @@ export const createFactCheck = async (req, res) => {
       });
     }
 
-    const fact = FactCheck.create({
+    const fact = await FactCheck.create({
       argumentId,
       verified,
       confidence: confidence || 0,
@@ -36,8 +36,8 @@ export const getFactChecks = async (req, res) => {
     const { argumentId } = req.query;
     
     const factchecks = argumentId 
-      ? FactCheck.find({ argumentId }) 
-      : FactCheck.find();
+      ? await FactCheck.find({ argumentId }) 
+      : await FactCheck.find();
 
     res.status(200).json({ 
       message: "Fact checks retrieved successfully",

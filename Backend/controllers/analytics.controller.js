@@ -3,7 +3,7 @@ import Argument from "../models/argument.model.js";
 export const getAnalytics = async (req, res) => {
   try {
     const { id } = req.params;
-    const argumentsList = Argument.find({ debateId: id });
+    const argumentsList = await Argument.find({ debateId: id });
 
     const fallaciesDetected = argumentsList.filter(a => a.fallacy && a.fallacy !== "None").length;
     const credibilityScores = argumentsList.filter(a => a.credibilityScore).map(a => a.credibilityScore);

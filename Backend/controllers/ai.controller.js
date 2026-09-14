@@ -6,7 +6,7 @@ import { generateDebateSummary, detectFallacyWithGemini } from "../services/gemi
 export const getAIFeedback = async (req, res) => {
   try {
     const { debateId } = req.params;
-    const argumentsList = Argument.find({ debateId });
+    const argumentsList = await Argument.find({ debateId });
 
     if (!argumentsList || argumentsList.length === 0) {
       return res.status(200).json({

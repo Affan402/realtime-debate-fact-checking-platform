@@ -11,7 +11,7 @@ export const createDebate = async (req, res) => {
       });
     }
 
-    const debate = Debate.create({ title, topic, status: status || "active" });
+    const debate = await Debate.create({ title, topic, status: status || "active" });
     res.status(201).json({ 
       message: "Debate created successfully",
       data: debate,
@@ -27,7 +27,7 @@ export const createDebate = async (req, res) => {
 
 export const getDebates = async (req, res) => {
   try {
-    const debates = Debate.find();
+    const debates = await Debate.find();
     res.status(200).json({ 
       message: "Debates retrieved successfully",
       data: debates,
@@ -44,7 +44,7 @@ export const getDebates = async (req, res) => {
 export const getDebateById = async (req, res) => {
   try {
     const { id } = req.params;
-    const debate = Debate.findById(id);
+    const debate = await Debate.findById(id);
     
     if (!debate) {
       return res.status(404).json({ 
@@ -69,7 +69,7 @@ export const getDebateById = async (req, res) => {
 export const updateDebate = async (req, res) => {
   try {
     const { id } = req.params;
-    const updatedDebate = Debate.findByIdAndUpdate(id, req.body);
+    const updatedDebate = await Debate.findByIdAndUpdate(id, req.body);
     
     if (!updatedDebate) {
       return res.status(404).json({ 
