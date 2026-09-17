@@ -21,16 +21,19 @@ export default function FactCheckPage() {
   const error = factChecksError
 
   // Map backend fact checks to the shape expected by FactCheckPanel
-  const factChecks = rawChecks.map((fc: any) => ({
-    id: fc.id,
-    claim: fc.claim || fc.reason || "Claim not available",
-    credibility: fc.verified ? "high" : fc.confidence >= 50 ? "medium" : "low",
-    explanation: fc.reason || "No analysis available",
-    sources: [],
-    aiConfidence: fc.confidence || 0,
-    timestamp: new Date(fc.createdAt).toLocaleString(),
-    speaker: fc.speakerName || "Unknown",
-  }))
+  const factChecks = rawChecks.map((fc: any) => {
+    const credibility: "high" | "medium" | "low" | "unverified" = fc.verified ? "high" : (fc.confidence ?? 0) >= 50 ? "medium" : "low"
+    return {
+      id: fc.id,
+      claim: fc.claim || fc.reason || "Claim not available",
+      credibility,
+      explanation: fc.reason || "No analysis available",
+      sources: [],
+      aiConfidence: fc.confidence || 0,
+      timestamp: new Date(fc.createdAt).toLocaleString(),
+      speaker: fc.speakerName || "Unknown",
+    }
+  })
 
   const stats = {
     total: factChecks.length,
