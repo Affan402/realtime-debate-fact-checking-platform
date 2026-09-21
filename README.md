@@ -1,325 +1,221 @@
-# ✅ Backend & Frontend Connection - COMPLETE!
+# Realtime Debate Fact-Checking Platform
 
-## 🎉 Summary of Work Completed
+A full-stack web app for structured debates with real-time argument sharing, heuristic fallacy detection, credibility scoring, and Gemini-powered feedback. Debaters submit arguments, the backend scores them for credibility and flags logical fallacies, and everyone in the room sees new arguments appear in real time.
 
-I have successfully reviewed your Backend and Frontend, and connected them through a complete API integration system. Here's what has been done:
+Built with React + TypeScript on the frontend and Node/Express on the backend, with Socket.IO for real-time updates, MongoDB/Mongoose for persistence, and Google's Gemini API for the AI features. The fact-checking is heuristic rather than a real verification engine — see Limitations for the honest details.
 
----
-
-## 📦 What Was Created
-
-### 1. **API Service Layer** ✅
-**File**: `Frontend/src/services/api.ts`
-- Centralized API communication
-- Automatic header and authentication token management
-- Base URL configuration from environment variables
-- Error handling and logging
-- Functions for all endpoints:
-  - `debateAPI` - Manage debates
-  - `argumentAPI` - Manage arguments
-  - `factCheckAPI` - Manage fact checks
-  - `analyticsAPI` - Get analytics
-  - `authAPI` - Authentication
-
-### 2. **Custom React Hooks** ✅
-**File**: `Frontend/src/hooks/use-api.ts`
-- `useDebates()` - Fetch and create debates
-- `useArguments()` - Fetch and create arguments
-- `useFactChecks()` - Fetch and create fact checks
-- `useAnalytics()` - Fetch analytics data
-
-Each hook includes:
-- Loading state management
-- Error state management
-- Automatic retry capability
-- Clean state handling
-
-### 3. **Example Implementations** ✅
-**File**: `Frontend/src/examples/api-implementation.example.tsx`
-- Complete working examples
-- Copy-paste ready code
-- Demonstrates:
-  - Fetching lists
-  - Creating items
-  - Form handling
-  - Complex data fetching
-  - Error handling
-
-### 4. **Environment Configuration** ✅
-- **Frontend `.env`**: Updated with `VITE_API_URL=http://localhost:5000/api`
-- **Backend `.env`**: Already properly configured with `PORT=5000`
-- **Vite Config**: Added development proxy for `/api` routes
-
-### 5. **Comprehensive Documentation** ✅
-| Document | Purpose |
-|----------|---------|
-| **INDEX.md** | Navigation hub (start here) |
-| **QUICK_START.md** | 5-minute setup guide |
-| **API_INTEGRATION_GUIDE.md** | Complete API reference |
-| **ARCHITECTURE_DIAGRAMS.md** | Visual diagrams & flows |
-| **IMPLEMENTATION_CHECKLIST.md** | Step-by-step guide |
-| **TROUBLESHOOTING.md** | Error solutions |
-| **SETUP_SUMMARY.md** | Project status |
+**Live Demo:** none deployed yet.
+**Repository:** https://github.com/Affan402/realtime-debate-fact-checking-platform
 
 ---
 
-## 🚀 How to Use
+## Features
 
-### Start the Servers
+- **Live debate room** — arguments submitted by one client are broadcast to everyone else in the room over Socket.IO.
+- **Fallacy detection** — a small regex check catches obvious patterns (ad hominem, appeal to common belief, false dilemma), with Gemini as a fallback for anything it doesn't recognize.
+- **Heuristic credibility scoring** — assigns a 0–1 score based on simple evidence-source rules.
+- **AI feedback** — Gemini generates a debate summary, lists detected fallacies, and picks a "winner" by average credibility.
+- **Devil's advocate** — a Gemini endpoint that generates a counter-argument to any claim.
+- **Analytics dashboard** — leaderboard, argument-strength chart, and per-debate stats computed from stored arguments.
+- **Backend authentication flow** — email OTP verification, password handling, and JWT issuance through authentication endpoints.
 
-**Terminal 1 - Backend:**
+---
+
+## Tech Stack
+
+| Area | Technology |
+|---|---|
+| Frontend | React 19, TypeScript, Vite 6 |
+| Routing | React Router 7 |
+| Styling | Tailwind CSS v4, shadcn/ui (Radix primitives) |
+| Backend | Node.js 22, Express 5 |
+| Database | MongoDB (Mongoose 9) |
+| Real-time | Socket.IO 4 |
+| Auth | bcryptjs, jsonwebtoken, nodemailer (Gmail) |
+| AI | Google Gemini (`@google/generative-ai`) |
+| Deployment | Docker (multi-stage), nginx, Vercel config |
+
+---
+
+## How It Works
+
+The app is a standard client/server split:
+
+```
+                    ┌───────────────┐
+                    │ Google Gemini │
+                    └───────▲───────┘
+                            │
+Browser ── HTTP/WebSocket ──► Express API
+                            │
+                            ▼
+                        MongoDB
+```
+
+The frontend talks to the backend through a thin `fetch` wrapper in `src/services/api.ts`. All data fetching and caching lives in a single React context (`DebateContext`), so pages share one source of truth instead of re-fetching on every navigation.
+
+Real-time works like this: when a client submits an argument, the frontend emits a `new_argument` event over Socket.IO *and* POSTs the argument to the API. The server broadcasts the event to everyone in that debate's room, and each client adds it to a live feed. The submitter ignores its own echo by matching a `speakerName::claim` signature.
+
+The "AI" features are all Gemini calls on the backend. Fallacy detection runs a fast regex check first and only calls Gemini when that doesn't match, which keeps the common cases cheap.
+
+---
+
+## Project Structure
+
+```
+Backend/
+  server.js              # entry point — mounts routes, starts HTTP + Socket.IO
+  app.js                 # Express app (cors + json middleware)
+  config/
+    Dbconfig.js          # MongoDB connection
+    socket.js            # Socket.IO room/event handling
+  routes/                # one router per resource
+  controllers/           # request handlers
+  models/                # Mongoose schemas
+  services/              # fallacy, credibility, Gemini logic
+  scripts/               # JSON → MongoDB migration
+  data/                  # legacy JSON seed data
+Frontend/
+  src/
+    pages/               # one component per route
+    context/             # DebateContext (shared state + socket wiring)
+    services/            # api.ts (fetch) and socket.ts (Socket.IO client)
+    components/          # debate, analytics, ai, ui components
+    hooks/               # use-api.ts (unused — see Limitations)
+  nginx.conf             # SPA fallback + /api + socket.io proxy
+  Dockerfile             # multi-stage build → nginx
+  vercel.json            # Vercel build config
+```
+
+---
+
+## API / Backend
+
+All routes are mounted under `/api`. Responses follow a loose `{ message, data, status }` shape. The core endpoints cover debates, arguments, fact checks, analytics, AI feedback, and auth.
+
+<details>
+<summary>View all API endpoints</summary>
+
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/api/debates` | List all debates |
+| POST | `/api/debates` | Create a debate |
+| GET | `/api/debates/:id` | Get one debate |
+| PUT | `/api/debates/:id` | Update a debate |
+| GET | `/api/arguments?debateId=` | List arguments (optionally filtered) |
+| POST | `/api/arguments` | Create an argument (runs fallacy + credibility) |
+| GET | `/api/arguments/:id` | Get one argument |
+| GET | `/api/factcheck?argumentId=` | List fact checks |
+| POST | `/api/factcheck` | Create a fact check |
+| GET | `/api/analytics/:id` | Per-debate stats (counts, avg credibility) |
+| GET | `/api/ai/feedback/:debateId` | Gemini summary + fallacies + winner |
+| POST | `/api/ai/devils-advocate` | Gemini counter-argument for a claim |
+| POST | `/api/auth/signup` | Create user, email OTP |
+| POST | `/api/auth/login` | Verify credentials, return JWT |
+| POST | `/api/auth/verify-otp` | Verify email OTP |
+| POST | `/api/auth/reset-otp` | Resend OTP |
+| POST | `/api/auth/forgot-password` | Email a password-reset link |
+| POST | `/api/auth/changepassword` | Change password with reset token |
+
+</details>
+
+Auth routes are rate-limited (100 requests per 10 minutes per IP).
+
+---
+
+## Data Model
+
+Five Mongoose models, all using string `_id`s so legacy IDs from the JSON-file era still work:
+
+- **Debate** — `title`, `topic`, `status` (`active`/`live`/`scheduled`/`closed`)
+- **Argument** — `debateId`, `speakerName`, `claim`, `evidence`, `fallacy` (string or object), `credibilityScore` (0–1)
+- **FactCheck** — `argumentId`, `verified`, `confidence`, `reason`
+- **User** — `username`, `email`, `password` (bcrypt-hashed), `isVerified`
+- **OTP** — `email`, `otp`, `isVerified`, with a 10-minute TTL index
+
+---
+
+## Running Locally
+
+Prerequisites: Node 22+, a MongoDB instance (local or Atlas).
+
+1. Clone and install:
+
+```bash
+git clone https://github.com/Affan402/realtime-debate-fact-checking-platform.git
+cd realtime-debate-fact-checking-platform
+
+cd Backend
+npm install
+
+cd ../Frontend
+npm install
+```
+
+2. Create `Backend/.env`:
+
+```
+URI=mongodb+srv://<your-connection-string>
+PORT=5000
+FRONTEND_URL=http://localhost:5173
+GEMINI_API_KEY=<your-key>
+EMAIL=<gmail-address>
+APP_PASS=<gmail-app-password>
+PRIVATE_KEY=<any-string-for-jwt-signing>
+```
+
+3. Run the backend:
+
 ```bash
 cd Backend
-npm install  # Only first time
 npm run dev
 ```
 
-**Terminal 2 - Frontend:**
+4. Run the frontend (separate terminal):
+
 ```bash
 cd Frontend
-npm install  # Only first time
 npm run dev
 ```
 
-### Expected Output:
-```
-Backend: Server running on http://localhost:5000
-Frontend: Local: http://localhost:5173
-```
+Open http://localhost:5173. The frontend defaults to `http://localhost:5000/api` for the API and `http://localhost:5000` for Socket.IO, so no frontend env vars are needed for local dev.
 
-### Use API in Components:
+Production build:
 
-```typescript
-import { useDebates } from '@/hooks/use-api';
-
-export function MyComponent() {
-  const { debates, loading, error, fetchDebates } = useDebates();
-
-  useEffect(() => {
-    fetchDebates(); // Calls: GET /api/debates
-  }, []);
-
-  if (loading) return <div>Loading...</div>;
-  if (error) return <div>Error: {error}</div>;
-
-  return <div>{debates.length} debates</div>;
-}
+```bash
+cd Frontend
+npm run build   # runs tsc && vite build, outputs to dist/
 ```
 
 ---
 
-## 📋 Available API Endpoints
+## Important Notes / Limitations
 
-All automatically connected to frontend hooks:
-
-```
-GET    /api/debates              → debateAPI.getDebates()
-POST   /api/debates              → debateAPI.createDebate()
-GET    /api/debates/:id          → debateAPI.getDebateById()
-
-POST   /api/arguments            → argumentAPI.createArgument()
-GET    /api/arguments            → argumentAPI.getArgumentsByDebate()
-
-POST   /api/factcheck            → factCheckAPI.createFactCheck()
-GET    /api/factcheck            → factCheckAPI.getFactChecks()
-
-GET    /api/analytics/:id        → analyticsAPI.getAnalytics()
-
-POST   /api/auth/signup          → authAPI.signup()
-POST   /api/auth/login           → authAPI.login()
-POST   /api/auth/verify-otp      → authAPI.verifyOTP()
-```
+- **Auth is not enforced.** The backend issues JWTs on login, but no route verifies them. Every `/api/debates`, `/api/arguments`, etc. endpoint is public. There's also no login/signup UI in the frontend — the auth API exists but nothing calls it.
+- **"Fact-checking" is a heuristic, not real verification.** Credibility is a hardcoded lookup (`who.int` → 0.9, `wikipedia` → 0.6, anything else → 0.4, no evidence → 0.3). Fact-check records are created manually via the API, not generated automatically.
+- **The debate room is partly mocked.** Speaker names, the countdown timer, audience reaction counts, and the "247 watching" figure are hardcoded/local state. Only argument submission is genuinely real-time.
+- **The active debate ID is hardcoded** to `"1786435967997"` in `DebateContext.tsx`. Selecting a debate from the list doesn't actually change which debate you're in.
+- **No automated tests.** The backend `test` script is the default "no test specified" stub.
+- **Some leftover code.** A few unused dependencies and an unused hook remain from earlier iterations and should be removed before production.
+- **No `docker-compose.yml`.** The Dockerfiles and `nginx.conf` reference a `backend` service name, but the compose file that would define it isn't in the repo, so the containers don't run together out of the box.
 
 ---
 
-## ✨ Key Features Included
+## Production Improvements
 
-✅ **Automatic Error Handling** - Try-catch wrapped, error states  
-✅ **Loading States** - Know when data is fetching  
-✅ **Auth Token Management** - Automatic token injection  
-✅ **Type Safety** - Full TypeScript support  
-✅ **Development Proxy** - No CORS issues during dev  
-✅ **Environment Configuration** - Dev/prod ready  
-✅ **Example Code** - Copy-paste implementations  
-✅ **Comprehensive Docs** - 7 documentation files  
-
----
-
-## 📁 New Files Created
-
-```
-Frontend/
-├── src/
-│   ├── services/
-│   │   └── api.ts                    ← API service
-│   ├── hooks/
-│   │   └── use-api.ts                ← React hooks
-│   └── examples/
-│       └── api-implementation.example.tsx  ← Examples
-├── .env.local                        ← Env config
-└── vite.config.ts                    ← Updated proxy
-
-Root/
-├── INDEX.md                          ← Navigation hub
-├── QUICK_START.md                    ← Quick guide
-├── API_INTEGRATION_GUIDE.md          ← Full reference
-├── SETUP_SUMMARY.md                  ← Status
-├── IMPLEMENTATION_CHECKLIST.md       ← Implementation
-├── ARCHITECTURE_DIAGRAMS.md          ← Diagrams
-└── TROUBLESHOOTING.md                ← Solutions
-```
+- Add JWT verification middleware and protect the data routes; add a real login/signup flow in the frontend.
+- Replace the hardcoded credibility heuristic with something that actually evaluates sources (or at least wire up the Gemini credibility function that already exists but isn't called).
+- Make the debate ID come from the route (`/debate/:id`) instead of a constant.
+- Add automated tests (at minimum for the controllers and the fallacy/credibility services).
+- Remove the dead dependencies and the unused `use-api.ts` hooks to reduce confusion.
+- Add a `docker-compose.yml` so the frontend/backend/MongoDB containers actually run together.
+- Add input validation (zod is already installed) and rate limiting beyond just the auth routes.
 
 ---
 
-## 🎯 Next Steps
+## Deployment
 
-1. **Read** [INDEX.md](INDEX.md) or [QUICK_START.md](QUICK_START.md)
-2. **Start** both servers (see instructions above)
-3. **Verify** connection at `http://localhost:5173`
-4. **Check** browser console (F12) for any errors
-5. **Implement** your components using the examples
-6. **Test** using browser DevTools (F12 → Network tab)
+There's a multi-stage frontend Dockerfile (Node build → nginx serve) with an `nginx.conf` that handles SPA fallback, `/api` proxying, and Socket.IO upgrade headers. The backend has a simple Node Dockerfile. There's also a `vercel.json` for the frontend. None of this is wired to a live deployment, and the missing compose file means the Docker setup isn't runnable as-is.
 
 ---
 
-## 🔧 Configuration Details
-
-### Frontend
-- **Framework**: React + TypeScript
-- **Build Tool**: Vite
-- **UI Components**: Radix UI
-- **HTTP**: Fetch API (no axios needed)
-- **API Base**: `http://localhost:5000/api`
-- **Auth**: localStorage (authToken)
-
-### Backend
-- **Framework**: Express.js
-- **Database**: MongoDB
-- **Real-time**: Socket.IO
-- **Port**: 5000
-- **CORS**: Enabled
-- **Rate Limiting**: 100 req/15min (auth endpoints)
-
-### Connection
-- **Method**: HTTP REST + WebSocket
-- **Base URL**: `http://localhost:5000/api`
-- **Headers**: Content-Type, Authorization
-- **Format**: JSON
-- **Development Proxy**: Configured in vite.config.ts
-
----
-
-## ✅ Verification Checklist
-
-- ✅ API service layer created
-- ✅ Custom React hooks created
-- ✅ Example implementations provided
-- ✅ Environment variables configured
-- ✅ Vite proxy configured
-- ✅ Frontend .env updated
-- ✅ Comprehensive documentation created
-- ✅ Troubleshooting guide provided
-- ✅ Architecture diagrams created
-- ✅ Implementation checklist prepared
-
----
-
-## 🆘 Quick Help
-
-**Problem**: "Cannot connect to backend"  
-**Solution**: Check backend is running with `npm run dev`
-
-**Problem**: "CORS error"  
-**Solution**: Backend CORS is enabled, restart server if needed
-
-**Problem**: "Cannot find module '@/services/api'"  
-**Solution**: Vite alias configured, restart dev server
-
-**Problem**: "TypeError in API call"  
-**Solution**: Check example code in `api-implementation.example.tsx`
-
-**See more**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-
----
-
-## 📖 Documentation Files
-
-All files are in your workspace root:
-
-| File | When to Read |
-|------|-------------|
-| **INDEX.md** | First - navigation hub |
-| **QUICK_START.md** | Getting servers running |
-| **API_INTEGRATION_GUIDE.md** | Understanding endpoints |
-| **ARCHITECTURE_DIAGRAMS.md** | How requests flow |
-| **IMPLEMENTATION_CHECKLIST.md** | Building components |
-| **TROUBLESHOOTING.md** | When you get stuck |
-| **SETUP_SUMMARY.md** | What was done |
-
----
-
-## 🎁 What You Have Now
-
-1. **Production-Ready API Service**
-   - Handles all communication
-   - Manages errors and auth
-   - Fully typed with TypeScript
-
-2. **React Hooks for Data Fetching**
-   - Easy to use in components
-   - Built-in loading/error states
-   - No Redux needed for simple cases
-
-3. **Complete Examples**
-   - Real component implementations
-   - Best practices shown
-   - Ready to copy and adapt
-
-4. **Comprehensive Documentation**
-   - Setup guides
-   - API reference
-   - Visual diagrams
-   - Troubleshooting
-   - Implementation guide
-
-5. **Development-Ready Setup**
-   - Vite proxy for zero CORS issues
-   - Environment variables configured
-   - Hot reload enabled
-   - TypeScript validation
-
----
-
-## 🚀 Ready to Build!
-
-Your Backend and Frontend are now:
-- ✅ Connected
-- ✅ Documented
-- ✅ Configured
-- ✅ Ready to use
-
-**Start with**: [QUICK_START.md](QUICK_START.md)  
-**Questions?**: Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md)  
-**Building?**: Follow [IMPLEMENTATION_CHECKLIST.md](IMPLEMENTATION_CHECKLIST.md)
-
----
-
-## 📞 Quick Links
-
-- **Navigation**: Start with [INDEX.md](INDEX.md)
-- **Setup**: Read [QUICK_START.md](QUICK_START.md)
-- **API Docs**: See [API_INTEGRATION_GUIDE.md](API_INTEGRATION_GUIDE.md)
-- **Examples**: Check `Frontend/src/examples/api-implementation.example.tsx`
-- **Stuck?**: Go to [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-
----
-
-## 🎉 Congratulations!
-
-Your Backend and Frontend are fully integrated and ready to use!
-
-**Backend**: `http://localhost:5000`  
-**Frontend**: `http://localhost:5173`  
-**API**: `http://localhost:5000/api`
-
-**Happy Coding! 🚀**
