@@ -85,7 +85,7 @@ const User =
         username: String,
         email: String,
         password: String,
-        Isverifed: Boolean,
+        isVerified: Boolean,
       },
       { timestamps: true, ...jsonOpts }
     )
@@ -100,7 +100,7 @@ const OTP =
         _id: { type: String },
         email: String,
         otp: String,
-        Isverified: Boolean,
+        isVerified: Boolean,
         createdAt: { type: Date, expires: 600 },
       },
       { timestamps: true, ...jsonOpts }

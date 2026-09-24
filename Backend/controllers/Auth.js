@@ -184,7 +184,7 @@ export const Verifyotp = async (Req, Res) => {
       });
     }
 
-    const IsExists = await OTPModel.findOne({ email, Isverified: false });
+    const IsExists = await OTPModel.findOne({ email, isVerified: false });
     
     console.log("OTP Check for email:", email, "OTP provided:", otp);
 
@@ -204,8 +204,8 @@ export const Verifyotp = async (Req, Res) => {
       });
     }
 
-    await OTPModel.findByIdAndUpdate(IsExists.id || IsExists._id, { Isverified: true });
-    await UserModel.findOneAndUpdate({ email }, { Isverifed: true });
+    await OTPModel.findByIdAndUpdate(IsExists.id || IsExists._id, { isVerified: true });
+    await UserModel.findOneAndUpdate({ email }, { isVerified: true });
 
     return Res.status(200).json({
       message: "OTP verified successfully",
@@ -361,7 +361,7 @@ export const ResetOTP = async (Req, Res) => {
   }
 }
 
-export const Forgetpassword = async (Req, Res) => {
+export const ForgotPassword = async (Req, Res) => {
   try {
     const { email } = Req.body;
 
@@ -568,7 +568,7 @@ export const Login = async (Req, Res) => {
       });
     }
 
-    if (!IsuserExists.Isverifed) {
+    if (!IsuserExists.isVerified) {
       return Res.status(403).json({
         message: "Please verify your email before logging in",
         Data: null,
@@ -586,7 +586,7 @@ export const Login = async (Req, Res) => {
           _id: IsuserExists._id,
           username: IsuserExists.username,
           email: IsuserExists.email,
-          Isverifed: IsuserExists.Isverifed
+          isVerified: IsuserExists.isVerified
         }, 
         token 
       },

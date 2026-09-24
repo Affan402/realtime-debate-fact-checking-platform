@@ -29,7 +29,7 @@ This guide explains how the frontend and backend are connected through REST API 
 | POST | `/login` | User login |
 | POST | `/verify-otp` | Verify OTP |
 | POST | `/reset-otp` | Reset OTP |
-| POST | `/forgetpassowrd` | Forgot password |
+| POST | `/forgot-password` | Forgot password |
 | POST | `/changepassword` | Change password |
 
 **Rate Limiting**: 100 requests per 15 minutes per IP

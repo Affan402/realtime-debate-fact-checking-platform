@@ -1,8 +1,6 @@
 import mongoose from "mongoose";
 
 // User schema — replaces the JSON-file "users" storage.
-// NOTE: `Isverifed` (sic) is the historical field name used by Auth.js —
-// kept as-is to avoid breaking existing data and responses.
 const userSchema = new mongoose.Schema(
   {
     // String _id preserves legacy IDs from the JSON era.
@@ -10,7 +8,7 @@ const userSchema = new mongoose.Schema(
     username: { type: String, required: true },
     email: { type: String, required: true, unique: true, lowercase: true, trim: true },
     password: { type: String, required: true },
-    Isverifed: { type: Boolean, default: false },
+    isVerified: { type: Boolean, default: false },
   },
   {
     timestamps: true,

@@ -57,7 +57,7 @@ Login to an existing account.
       "_id": "1234567890",
       "username": "john_doe",
       "email": "john@example.com",
-      "Isverifed": true
+      "isVerified": true
     },
     "token": "jwt_token_here"
   }
@@ -109,8 +109,8 @@ Request a new OTP.
 
 ---
 
-### POST `/api/auth/forgetpassowrd`
-Request password reset (note: typo in endpoint).
+### POST `/api/auth/forgot-password`
+Request password reset.
 
 **Request Body:**
 ```json

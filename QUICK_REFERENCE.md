@@ -306,7 +306,7 @@ useAnalytics()
 [POST] /api/auth/signup          Register
 [POST] /api/auth/login           Login
 [POST] /api/auth/verify-otp      Verify OTP
-[POST] /api/auth/forgetpassowrd  Forgot password
+[POST] /api/auth/forgot-password  Forgot password
 [POST] /api/auth/changepassword  Change password
 ```
 

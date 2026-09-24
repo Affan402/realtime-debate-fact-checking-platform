@@ -1,7 +1,6 @@
 import mongoose from "mongoose";
 
 // OTP schema — replaces the JSON-file "otps" storage.
-// NOTE: `Isverified` (capital I) is the historical field name used by Auth.js.
 // The TTL index auto-deletes OTPs 10 minutes after creation, replacing the
 // old setTimeout-based cleanup in storage.js.
 const otpSchema = new mongoose.Schema(
@@ -10,7 +9,7 @@ const otpSchema = new mongoose.Schema(
     _id: { type: String, default: () => Date.now().toString() },
     email: { type: String, required: true, index: true },
     otp: { type: String, required: true },
-    Isverified: { type: Boolean, default: false },
+    isVerified: { type: Boolean, default: false },
     createdAt: { type: Date, default: Date.now, expires: 600 }, // 10 minutes
   },
   {

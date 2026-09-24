@@ -1,5 +1,5 @@
 import express from "express"
-import { Signup , Login , Verifyotp , ResetOTP , Forgetpassword , Changepassword} from "../controllers/Auth.js";
+import { Signup , Login , Verifyotp , ResetOTP , ForgotPassword , Changepassword} from "../controllers/Auth.js";
 import rateLimit from "express-rate-limit";
 const route = express.Router();
 
@@ -26,7 +26,7 @@ route.post("/login",limiter,Login)
 
 route.post("/verify-otp" ,limiter , Verifyotp)
 route.post("/reset-otp",limiter,ResetOTP)
-route.post("/forgetpassowrd",limiter, Forgetpassword)
+route.post("/forgot-password",limiter, ForgotPassword)
 route.post("/changepassword",limiter,Changepassword)
 
 
