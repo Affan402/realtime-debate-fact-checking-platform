@@ -6,6 +6,8 @@ services:
       - "5000:5000"
     env_file:
       - ./Backend/.env
+    depends_on:
+      - mongo
 
   frontend:
     build:
@@ -18,3 +20,12 @@ services:
       - "8080:80"
     depends_on:
       - backend
+
+  mongo:
+    image: mongo:8
+    container_name: mongo
+    volumes:
+      - mongo-data:/data/db
+    
+volumes:
+  mongo-data:

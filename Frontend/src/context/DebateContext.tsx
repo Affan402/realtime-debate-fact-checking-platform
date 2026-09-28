@@ -43,6 +43,7 @@ interface DebateContextValue {
   debatesLoading: boolean
   debatesError: string | null
   refreshDebates: () => Promise<void>
+  createDebate: (payload: { title: string; topic: string; status?: string }) => Promise<any>
 
   // Arguments for the active debate (cached + live socket updates)
   arguments: any[]
@@ -140,6 +141,17 @@ export function DebateProvider({ children }: { children: ReactNode }) {
       setDebatesLoading(false)
     }
   }, [])
+
+  // ---- Create a new debate (POST /api/debates) then refresh the list ----
+  const createDebate = useCallback(
+    async (payload: { title: string; topic: string; status?: string }) => {
+      const response = await debateAPI.createDebate(payload)
+      // Refresh the cached list so the new debate appears immediately.
+      await refreshDebates()
+      return response.data
+    },
+    [refreshDebates],
+  )
 
   const refreshArguments = useCallback(async () => {
     if (!activeDebateId) return
@@ -281,6 +293,7 @@ export function DebateProvider({ children }: { children: ReactNode }) {
       debatesLoading,
       debatesError,
       refreshDebates,
+      createDebate,
       arguments: arguments_,
       argumentsLoading,
       argumentsError,
@@ -309,6 +322,7 @@ export function DebateProvider({ children }: { children: ReactNode }) {
       debatesLoading,
       debatesError,
       refreshDebates,
+      createDebate,
       arguments_,
       argumentsLoading,
       argumentsError,

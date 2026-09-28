@@ -1,13 +1,24 @@
-import { useEffect } from "react"
+import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ArrowLeft, Users, Clock, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog"
+import { ArrowLeft, Users, Clock, Loader2, Plus, Sparkles } from "lucide-react"
 import { useDebateData } from "@/context/DebateContext"
 
 export default function DebatesPage() {
-  const { debates, debatesLoading, debatesError, refreshDebates } = useDebateData()
+  const { debates, debatesLoading, debatesError, refreshDebates, createDebate, setActiveDebateId } = useDebateData()
 
   // Fetch debates on mount if not already cached
   useEffect(() => {
@@ -18,6 +29,42 @@ export default function DebatesPage() {
 
   const loading = debatesLoading
   const error = debatesError
+
+  // ---- Create-debate dialog state ----
+  const [createOpen, setCreateOpen] = useState(false)
+  const [title, setTitle] = useState("")
+  const [topic, setTopic] = useState("")
+  const [creating, setCreating] = useState(false)
+  const [createError, setCreateError] = useState<string | null>(null)
+
+  const resetForm = () => {
+    setTitle("")
+    setTopic("")
+    setCreateError(null)
+  }
+
+  const handleCreate = async () => {
+    if (!title.trim() || !topic.trim()) {
+      setCreateError("Title and topic are required")
+      return
+    }
+    setCreating(true)
+    setCreateError(null)
+    try {
+      const newDebate = await createDebate({ title: title.trim(), topic: topic.trim() })
+      setCreateOpen(false)
+      resetForm()
+      // If the API returned the new debate, set it active so the user can
+      // jump straight into the room and start submitting arguments.
+      if (newDebate?.id || newDebate?._id) {
+        setActiveDebateId(newDebate.id || newDebate._id)
+      }
+    } catch (err: any) {
+      setCreateError(err.message || "Failed to create debate")
+    } finally {
+      setCreating(false)
+    }
+  }
 
   const formatTimeAgo = (dateString: string) => {
     const diff = Date.now() - new Date(dateString).getTime()
@@ -38,10 +85,74 @@ export default function DebatesPage() {
               <ArrowLeft className="size-5" />
             </Link>
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="text-3xl font-bold">Browse Debates</h1>
             <p className="text-muted-foreground mt-1">Join live debates or explore past discussions</p>
           </div>
+          <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) resetForm() }}>
+            <DialogTrigger asChild>
+              <Button>
+                <Plus className="size-4 mr-2" />
+                New Debate
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-md">
+              <DialogHeader>
+                <DialogTitle className="flex items-center gap-2">
+                  <Sparkles className="size-5 text-accent" />
+                  Start a New Debate
+                </DialogTitle>
+                <DialogDescription>
+                  Create a new debate room. Fill in a title and topic to get started.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                <div className="space-y-2">
+                  <Label htmlFor="debate-title">Title</Label>
+                  <Input
+                    id="debate-title"
+                    placeholder="e.g. The Future of AI Regulation"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    disabled={creating}
+                    autoFocus
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="debate-topic">Topic</Label>
+                  <Input
+                    id="debate-topic"
+                    placeholder="e.g. Technology"
+                    value={topic}
+                    onChange={(e) => setTopic(e.target.value)}
+                    disabled={creating}
+                  />
+                </div>
+                {createError && (
+                  <p className="text-sm text-red-500">{createError}</p>
+                )}
+              </div>
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => { setCreateOpen(false); resetForm() }}
+                  disabled={creating}
+                >
+                  Cancel
+                </Button>
+                <Button onClick={handleCreate} disabled={creating || !title.trim() || !topic.trim()}>
+                  {creating ? (
+                    <>
+                      <Loader2 className="size-4 mr-2 animate-spin" />
+                      Creating…
+                    </>
+                  ) : (
+                    "Create Debate"
+                  )}
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </div>
 
         {loading && (
@@ -58,7 +169,13 @@ export default function DebatesPage() {
 
         {!loading && !error && debates.length === 0 && (
           <Card className="p-12 max-w-4xl text-center">
-            <p className="text-muted-foreground">No debates yet. Start a new debate from the home page!</p>
+            <Sparkles className="size-10 text-accent mx-auto mb-4" />
+            <h3 className="text-xl font-semibold mb-2">No debates yet</h3>
+            <p className="text-muted-foreground mb-6">Be the first to start a debate on this platform.</p>
+            <Button onClick={() => setCreateOpen(true)}>
+              <Plus className="size-4 mr-2" />
+              Create Your First Debate
+            </Button>
           </Card>
         )}
 
