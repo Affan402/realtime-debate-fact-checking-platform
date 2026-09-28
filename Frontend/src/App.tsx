@@ -14,7 +14,7 @@ function App() {
       <DebateProvider>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/debate/room" element={<DebateRoomPage />} />
+          <Route path="/debate/room/:debateId" element={<DebateRoomPage />} />
           <Route path="/debates" element={<DebatesPage />} />
           <Route path="/debate/arguments" element={<ArgumentsPage />} />
           <Route path="/debate/fact-check" element={<FactCheckPage />} />

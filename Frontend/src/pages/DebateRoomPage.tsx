@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { Link } from "react-router-dom"
+import { Link, useParams } from "react-router-dom"
 import { SpeakerPanel } from "@/components/debate/speaker-panel"
 import { ArgumentInput } from "@/components/debate/argument-input"
 import { AudienceReactions } from "@/components/debate/audience-reactions"
@@ -9,9 +9,43 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ArrowLeft, Users, BarChart3, Loader2, CheckCircle2, Radio } from "lucide-react"
 import { useDebateData } from "@/context/DebateContext"
+import { debateAPI } from "@/services/api"
 
 export default function DebateRoomPage() {
-  const { isLive, liveArguments, submitArgument } = useDebateData()
+  const { debateId } = useParams<{ debateId: string }>()
+  const { isLive, liveArguments, submitArgument, setActiveDebateId, debates } = useDebateData()
+
+  // The debate title shown in the header. We try the cached debates list
+  // first (instant), then fall back to a single-debate API fetch.
+  const [debateTitle, setDebateTitle] = useState<string>("Loading debate…")
+
+  useEffect(() => {
+    if (!debateId) return
+    // Set this debate as the active one in context so arguments, analytics,
+    // AI feedback, and the socket room all target the right debate.
+    setActiveDebateId(debateId)
+
+    // Try the cached list first — avoids an extra network request when the
+    // user navigated here from the DebatesPage list.
+    const cached = debates.find((d) => (d.id || d._id) === debateId)
+    if (cached?.title) {
+      setDebateTitle(cached.title)
+      return
+    }
+    // Not in cache — fetch the single debate from the API.
+    let cancelled = false
+    debateAPI
+      .getDebateById(debateId)
+      .then((res) => {
+        if (!cancelled && res.data?.title) setDebateTitle(res.data.title)
+      })
+      .catch(() => {
+        if (!cancelled) setDebateTitle("Debate not found")
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [debateId, debates, setActiveDebateId])
 
   // Local UI-only state (speakers timer + audience reactions are specific to this page)
   const [speakers, setSpeakers] = useState([
@@ -100,7 +134,7 @@ export default function DebateRoomPage() {
                 </Link>
               </Button>
               <div>
-                <h1 className="text-xl font-bold">The Future of AI Regulation</h1>
+                <h1 className="text-xl font-bold">{debateTitle}</h1>
                 <div className="flex items-center gap-3 mt-1">
                   <Badge
                     variant="secondary"

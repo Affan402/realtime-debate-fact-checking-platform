@@ -25,7 +25,7 @@ export default function HomePage() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Button size="lg" asChild className="text-base">
-                <Link to="/debate/room">Start Debating</Link>
+                <Link to="/debates">Start Debating</Link>
               </Button>
               <Button size="lg" variant="outline" asChild className="text-base bg-transparent">
                 <Link to="/debates">Browse Debates</Link>

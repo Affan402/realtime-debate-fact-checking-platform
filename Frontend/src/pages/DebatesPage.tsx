@@ -221,7 +221,7 @@ export default function DebatesPage() {
                 </div>
 
                 <Button asChild>
-                  <Link to="/debate/room">
+                  <Link to={`/debate/room/${debate.id}`}>
                     {(debate.status === "live" || debate.status === "active") ? "Join" : debate.status === "scheduled" ? "Set Reminder" : "Watch"}
                   </Link>
                 </Button>
