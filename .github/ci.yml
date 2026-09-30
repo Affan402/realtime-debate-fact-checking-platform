@@ -1,0 +1,26 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v4 #copy code onto the runner
+
+      - uses: actions/setup-node@v4 #install nodejs
+        with:
+          node-version: '22'
+      - name: Install frontend dependencies
+        run: |
+          cd Frontend
+          npm ci
+      - name: Build frontend
+        run: |
+          cd Frontend
+          npm run build
