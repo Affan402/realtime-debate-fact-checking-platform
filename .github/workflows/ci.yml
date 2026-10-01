@@ -54,8 +54,8 @@ jobs:
 
       - name: Build backend image
         run: |
-          docker build -t debate-backend:latest ./Backend
+          docker build -t debate-backend:latest -t debate-backend:${{ github.sha }} ./Backend
 
       - name: Build frontend image
         run: |
-          docker build -t debate-frontend:latest ./Frontend
+          docker build -t debate-frontend:latest -t debate-frontend:${{ github.sha }} ./Frontend
