@@ -14,5 +14,5 @@ export function validateDebate(title, topic) {
     return {
         valid: errors.length === 0,
         errors,
-    }
+    };
 }

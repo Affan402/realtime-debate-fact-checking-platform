@@ -43,4 +43,19 @@ jobs:
         run: |
           cd Backend
           npm test
-         
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        run: |
+          docker build -t debate-backend:latest ./Backend
+
+      - name: Build frontend image
+        run: |
+          docker build -t debate-frontend:latest ./Frontend
