@@ -52,10 +52,27 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build backend image
-        run: |
-          docker build -t debate-backend:latest -t debate-backend:${{ github.sha }} ./Backend
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Build frontend image
+      - name: Build and push backend image
         run: |
-          docker build -t debate-frontend:latest -t debate-frontend:${{ github.sha }} ./Frontend
+          docker build \
+            -t ghcr.io/affan402/debate-backend:latest \
+            -t ghcr.io/affan402/debate-backend:${{ github.sha }} \
+            ./Backend
+          docker push ghcr.io/affan402/debate-backend:latest
+          docker push ghcr.io/affan402/debate-backend:${{ github.sha }}
+
+      - name: Build and push frontend image
+        run: |
+          docker build \
+            -t ghcr.io/affan402/debate-frontend:latest \
+            -t ghcr.io/affan402/debate-frontend:${{ github.sha }} \
+            ./Frontend
+          docker push ghcr.io/affan402/debate-frontend:latest
+          docker push ghcr.io/affan402/debate-frontend:${{ github.sha }}
