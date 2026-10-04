@@ -48,6 +48,8 @@ jobs:
         run: |
           cd Backend
           npm test
+        env:
+          URI: ${{ secrets.MONGODB_URI }}
   docker:
     runs-on: ubuntu-latest
     permissions:
