@@ -1,4 +1,4 @@
-// Validates debate title and topic before saving
+// Validates debate title & topic before saving
 export function validateDebate(title, topic) {
     const errors = [];
 
