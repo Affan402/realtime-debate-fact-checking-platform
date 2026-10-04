@@ -16,6 +16,13 @@ jobs:
       - uses: actions/setup-node@v4 #install nodejs
         with:
           node-version: '22'
+
+      - name: Cache frontend dependencies
+        uses: actions/cache@v4
+        with:
+          path: Frontend/node_modules
+          key: frontend-deps-${{ hashFiles('Frontend/package-lock.json') }}
+          
       - name: Install frontend dependencies
         run: |
           cd Frontend
@@ -33,6 +40,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+
+      - name: Cache backend dependencies
+        uses: actions/cache@v4
+        with:
+          path: Backend/node_modules
+          key: backend-deps-${{ hashFiles('Backend/package-lock.json') }}
 
       - name: Install backend dependencies
         run: |
